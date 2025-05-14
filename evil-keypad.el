@@ -4,8 +4,8 @@
 ;; Author: Achyudh Ram <mail@achyudh.me>
 ;; Maintainer: Achyudh Ram <mail@achyudh.me>
 ;; Created: 2025-05-03
-;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1") (which-key "3.0"))
+;; Version: 0.1.1
 ;; Keywords: evil, keypad, modal, command, dispatch
 ;; URL: https://github.com/achyudh/evil-keypad
 
@@ -29,8 +29,8 @@
 ;;; Commentary:
 ;; Provides `evil-keypad-start', a command to activate a transient
 ;; keypad mode inspired by Meow Keypad. Allows entering complex Emacs
-;; key sequences using single key presses without holding down modifier
-;; keys.
+;; key sequences using a series of single key presses without holding
+;; down modifier keys.
 ;;
 ;; After triggering the keypad, type a sequence representing modifiers
 ;; and keys (e.g., 'x f' for C-x C-f, 'm x' for M-x, 'a s' for C-c a
@@ -229,7 +229,7 @@ Set based on the first action/key of the sequence.")
 (define-key evil-keypad-state-keymap (kbd "DEL") #'evil-keypad-undo)
 
 (defun evil-keypad--try-execute ()
-  "Check current sequence, execute, or update echo/which-key. Returns t to exit loop."
+  "Check current sequence, execute/fallback, or update echo/which-key. Returns t to exit loop."
   (if evil-keypad--pending-modifier
       (progn ; Echo pending state
         (message "%s%s"
@@ -252,10 +252,44 @@ Set based on the first action/key of the sequence.")
            ((commandp binding)
             (evil-keypad--cancel-display-timer-and-clear)
             (evil-keypad--execute binding) t)
-           (t ; Unbound
-            (evil-keypad--cancel-display-timer-and-clear)
-            (message "%s is undefined" seq-str) ; Echo unbound
-            (evil-keypad--quit) t)))))))
+           (t
+            (let* ((original-seq-str seq-str)
+                   (last-pair (car evil-keypad--keys))
+                   (last-modifier (car last-pair))
+                   (fallback-possible (and evil-keypad--keys (not (eq last-modifier 'literal))))
+                   (fallback-binding nil)
+                   (fallback-keys nil)
+                   (fallback-seq-str nil))
+
+              (when fallback-possible
+                (setq fallback-keys (cons (cons 'literal (cdr last-pair))
+                                          (cdr evil-keypad--keys)))
+                (setq fallback-seq-str (evil-keypad--format-sequence fallback-keys))
+                (when (not (string-empty-p fallback-seq-str))
+                  (setq fallback-binding (key-binding (kbd fallback-seq-str) t))))
+
+              (cond
+               ;; Fallback found a command
+               ((commandp fallback-binding)
+                (evil-keypad--cancel-display-timer-and-clear)
+                ;; No special fallback message, just execute
+                (evil-keypad--execute fallback-binding)
+                t) ; Exit loop
+               ;; Fallback found a keymap (prefix)
+               ((keymapp fallback-binding)
+                (evil-keypad--cancel-display-timer) ; Don't clear if popup was for previous part
+                (setq evil-keypad--keys fallback-keys) ; Update state
+                (message "%s-" fallback-seq-str)      ; Echo new prefix
+                (setq evil-keypad--display-timer      ; Schedule which-key for new prefix
+                      (run-with-idle-timer (or (bound-and-true-p which-key-idle-delay) 0.4)
+                                           nil evil-keypad--display-bindings-function fallback-binding))
+                nil) ; Continue loop with new prefix
+               ;; Fallback failed or not applicable
+               (t
+                (evil-keypad--cancel-display-timer-and-clear)
+                (message "%s is undefined" original-seq-str) ; Log undefined
+                (evil-keypad--quit)
+                t)))))))))) ; Exit loop
 
 (defun evil-keypad--handle-input (event)
   "Handle a single EVENT. Returns t if loop should exit."
@@ -289,7 +323,7 @@ Set based on the first action/key of the sequence.")
           ;; Case 2: Current event is NOT a new trigger OR it IS consuming a pending modifier.
           (let* ((key-string (single-key-description event))
                  (is-first-actual-key (null evil-keypad--keys))
-                 (add-explicit-C-c-prefix-p nil)
+                 (add-implicit-C-c-prefix-p nil)
                  (modifier-for-current-key
                   (cond
                    (mod-from-pending mod-from-pending) ; Modifier from m,g,SPC takes precedence
@@ -301,14 +335,14 @@ Set based on the first action/key of the sequence.")
                      ((eq event evil-keypad-C-h-trigger) ; Rule 3 for h
                       (setq evil-keypad--control-inducing-sequence-p nil) 'control) ; C-h is not C-inducing
                      (t ; Rule 1 for other first keys
-                      (setq add-explicit-C-c-prefix-p t)
+                      (setq add-implicit-C-c-prefix-p t)
                       (setq evil-keypad--control-inducing-sequence-p nil) ; C-c k is not C-inducing
                       'literal)))
                    (evil-keypad--control-inducing-sequence-p 'control) ; Subsequent key in C-inducing context
                    (t 'literal)))) ; Subsequent key, not in C-inducing context
 
             (push (cons modifier-for-current-key key-string) evil-keypad--keys)
-            (when add-explicit-C-c-prefix-p
+            (when add-implicit-C-c-prefix-p
               (setq evil-keypad--keys (list (cons 'literal key-string) (cons 'control "c"))))
             (evil-keypad--try-execute))))))) ; Returns t/nil
 
