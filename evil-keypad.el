@@ -295,8 +295,8 @@ Displays prefix in echo area and schedules which-key. Returns nil."
 Returns t to exit, nil to continue (if fallback leads to new prefix)."
   (let* ((last-pair (car evil-keypad--keys))
          (last-modifier (car last-pair))
-         ;; Fallback is possible if keys exist and last modifier wasn't already literal
-         (fallback-possible (and evil-keypad--keys (not (eq last-modifier 'literal))))
+         ;; Fallback is possible only if last modifier was 'control'
+         (fallback-possible (and evil-keypad--keys (eq last-modifier 'control)))
          (fallback-binding nil)
          (fallback-keys nil)
          (fallback-seq-str nil))
