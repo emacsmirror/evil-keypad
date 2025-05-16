@@ -135,14 +135,14 @@ Evil Keypad uses the concept of **"Control-Persistent Prefixes."** When a sequen
 
 You can customize the trigger keys used by Evil Keypad via `M-x customize-group RET evil-keypad RET`.
 
-| Variable                        | Default | Purpose                                                         |
-| :------------------------------ | :------ | :-------------------------------------------------------------- |
-| `evil-keypad-M-trigger`         | `m`     | Key to trigger `M-` for the next input.                         |
-| `evil-keypad-C-M-trigger`       | `g`     | Key to trigger `C-M-` for the next input.                       |
-| `evil-keypad-literal-trigger`   | `SPC`   | Key (after first key) for literal next input (no default `C-`). |
-| `evil-keypad-C-x-trigger`       | `x`     | First key to represent the `C-x` prefix.                        |
-| `evil-keypad-C-c-trigger`       | `c`     | First key to represent the `C-c` prefix.                        |
-| `evil-keypad-C-h-trigger`       | `h`     | First key to represent the `C-h` prefix.                        |
+| Variable                        | Default | Purpose                                                          |
+| :------------------------------ | :------ | :--------------------------------------------------------------- |
+| `evil-keypad-M-trigger`         | `m`     | Key to trigger `M-` for the next input.                          |
+| `evil-keypad-C-M-trigger`       | `g`     | Key to trigger `C-M-` for the next input.                        |
+| `evil-keypad-literal-trigger`   | `SPC`   | Key to trigger literal next input.                               |
+| `evil-keypad-C-x-trigger`       | `x`     | First key to represent the `C-x` prefix.                         |
+| `evil-keypad-C-c-trigger`       | `c`     | First key to represent the `C-c` prefix.                         |
+| `evil-keypad-C-h-trigger`       | `h`     | First key to represent the `C-h` prefix.                         |
 
 ## License
 

@@ -66,7 +66,6 @@ by the previous key press, to be applied to the next key.")
   "Non-nil if the current keypad sequence context implies subsequent keys default to Control.
 Set based on the first action/key of the sequence.")
 
-;; --- Which-Key Integration Variables ---
 (defvar evil-keypad--display-timer nil
   "Holds the idle timer object for the which-key popup.")
 
@@ -148,13 +147,39 @@ Set based on the first action/key of the sequence.")
   (evil-keypad--cancel-display-timer)
   (funcall evil-keypad--clear-display-function))
 
-(defun evil-keypad--trigger-which-key-display (target-keymap)
-  "Show TARGET-KEYMAP using which-key."
+(defvar evil-keypad--initial-display-map nil
+  "Keymap pre-calculated for initial which-key display when keypad starts.")
+
+(defun evil-keypad--make-initial-display-map ()
+  "Create and return a keymap for initial which-key display."
+  (let ((map (make-sparse-keymap "Evil Keypad Initial Actions")))
+    (define-key map (vector evil-keypad-C-x-trigger) "C-x-prefix")
+    (define-key map (vector evil-keypad-C-c-trigger) "C-c-prefix")
+    (define-key map (vector evil-keypad-C-h-trigger) "C-h-prefix")
+    (define-key map (vector evil-keypad-M-trigger)   "M-trigger")
+    (define-key map (vector evil-keypad-C-M-trigger) "C-M-trigger")
+    (define-key map (kbd "ESC") #'evil-keypad-quit)
+    map))
+
+;; Initialize it once when the file is loaded
+(setq evil-keypad--initial-display-map (evil-keypad--make-initial-display-map))
+
+(defun evil-keypad--trigger-which-key-display (&optional target-keymap)
+  "Show relevant bindings using which-key.
+If TARGET-KEYMAP is non-nil, display that Emacs keymap.  Otherwise, show
+the initial evil-keypad trigger keys."
   (evil-keypad--cancel-display-timer)
   (condition-case err
-      (when (keymapp target-keymap)
-        (which-key--create-buffer-and-show nil target-keymap nil nil))
-    (error (message "Error showing which-key: %S" err)))) ; Log error
+      (if (and target-keymap (keymapp target-keymap))
+          ;; Case 1: Displaying a specific Emacs prefix map
+          (let ((title (format "%s-" (evil-keypad--format-sequence evil-keypad--keys))))
+            (which-key--create-buffer-and-show nil target-keymap nil title))
+        ;; Case 2: Initial display or state cleared to empty
+        (if (null evil-keypad--keys) ; Check if keypad is indeed at the initial state
+            (which-key--create-buffer-and-show nil evil-keypad--initial-display-map nil "Evil Keypad:")
+          ;; Fallback: If keys exist but no target-emacs-keymap, likely an error or intermediate state.
+          (funcall evil-keypad--clear-display-function)))
+    (error (message "Error showing which-key: %S" err))))
 
 (defun evil-keypad--which-key-integration-setup ()
   "Set display/clear functions and manage `which-key-show-prefix'."
@@ -163,7 +188,7 @@ Set based on the first action/key of the sequence.")
            (fboundp 'which-key--hide-popup))
       (progn
         (setq evil-keypad--display-bindings-function
-              (lambda (keymap) (evil-keypad--trigger-which-key-display keymap)))
+              (lambda (&optional keymap) (evil-keypad--trigger-which-key-display keymap)))
         (setq evil-keypad--clear-display-function #'which-key--hide-popup)
         (when (boundp 'which-key-show-prefix)
           (setq evil-keypad--original-which-key-show-prefix (symbol-value 'which-key-show-prefix))
@@ -239,7 +264,7 @@ MODIFIER-TYPE is 'meta or 'control-meta."
         evil-keypad--prefix-arg nil
         evil-keypad--control-inducing-sequence-p nil))
 
-(defun evil-keypad-quit-command ()
+(defun evil-keypad-quit ()
   "Interactive command to quit keypad."
   (interactive)
   (evil-keypad--quit) t)
@@ -261,8 +286,8 @@ MODIFIER-TYPE is 'meta or 'control-meta."
   nil)
 
 (defvar evil-keypad-state-keymap (make-sparse-keymap) "Keymap for keypad internal commands.")
-(define-key evil-keypad-state-keymap (kbd "<escape>") #'evil-keypad-quit-command)
-(define-key evil-keypad-state-keymap (kbd "ESC") #'evil-keypad-quit-command)
+(define-key evil-keypad-state-keymap (kbd "<escape>") #'evil-keypad-quit)
+(define-key evil-keypad-state-keymap (kbd "ESC") #'evil-keypad-quit)
 (define-key evil-keypad-state-keymap (kbd "<backspace>") #'evil-keypad-undo)
 (define-key evil-keypad-state-keymap (kbd "DEL") #'evil-keypad-undo)
 
@@ -404,7 +429,12 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
 
   (when (and (boundp 'which-key-mode) which-key-mode)
     (evil-keypad--which-key-integration-setup))
-  (message "") ; Clear echo area initially
+
+  ;; Schedule initial which-key display after idle delay
+  (setq evil-keypad--display-timer
+        (run-with-idle-timer (or (bound-and-true-p which-key-idle-delay) 0.4)
+                             nil
+                             evil-keypad--display-bindings-function))
 
   (unwind-protect
       (while (not (evil-keypad--handle-input (read-key))))
