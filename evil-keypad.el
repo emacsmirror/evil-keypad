@@ -5,7 +5,7 @@
 ;; Maintainer: Achyudh Ram <mail@achyudh.me>
 ;; Created: 2025-05-03
 ;; Package-Requires: ((emacs "29.1") (which-key "3.0"))
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Keywords: evil, keypad, modal, command, dispatch
 ;; URL: https://github.com/achyudh/evil-keypad
 
@@ -52,11 +52,11 @@
 (defvar evil-keypad--keys nil
   "Internal list representing the keys sequence during keypad invocation.
 Stores (MODIFIER . KEY-STRING) cons cells, ordered most recent first.
-MODIFIER is a symbol like 'literal, 'control, 'meta, 'both.
+MODIFIER is a symbol like 'literal, 'control, 'meta, 'control-meta.
 KEY-STRING is the result of `single-key-description'.")
 
 (defvar evil-keypad--pending-modifier nil
-  "Stores the pending modifier symbol ('meta, 'both, 'literal) triggered
+  "Stores the pending modifier symbol ('meta, 'control-meta, 'literal) triggered
 by the previous key press, to be applied to the next key.")
 
 (defvar evil-keypad--prefix-arg nil
@@ -118,7 +118,7 @@ Set based on the first action/key of the sequence.")
   (let ((modifier (car pair)) (key-string (cdr pair)))
     (cond
      ((eq modifier 'meta) (format "M-%s" key-string))
-     ((or (eq modifier 'control) (eq modifier 'both))
+     ((or (eq modifier 'control) (eq modifier 'control-meta))
       (let* ((char (and (> (length key-string) 0) (aref key-string 0)))
              (is-uppercase (and char (= (length key-string) 1) (<= ?A char) (<= char ?Z))))
         (if is-uppercase
@@ -181,6 +181,35 @@ Set based on the first action/key of the sequence.")
 ;; Core Logic
 ;;----------------------------------------
 
+(defun evil-keypad--keymap-has-ctrl-meta-bindings-p (keymap)
+  "Return t if KEYMAP contains any C-M- modified single key bindings."
+  (when (keymapp keymap)
+    (let ((found nil))
+      (map-keymap
+       (lambda (key _binding)
+         (unless (vectorp key) ; Process single events
+           (let ((mods (event-modifiers key)))
+             (when (and (memq 'control mods) (memq 'meta mods))
+               (setq found t)
+               (cl-return-from evil-keypad--keymap-has-ctrl-meta-bindings-p t)))))
+       keymap)
+      found)))
+
+(defun evil-keypad--context-allows-modifier-type-p (modifier-type)
+  "Check if the current keypad context allows for PENDING-MODIFIER-TYPE.
+MODIFIER-TYPE is 'meta or 'control-meta."
+  (if (null evil-keypad--keys) ; If at the very start of keypad input
+      t ; Always allow m/g to trigger initially
+    (let* ((seq-str (evil-keypad--format-sequence evil-keypad--keys))
+           (current-map (if (string-empty-p seq-str)
+                            (current-global-map)
+                          (key-binding (kbd seq-str) t))))
+      (if (keymapp current-map)
+          (cl-case modifier-type
+            (meta (lookup-key current-map (kbd "ESC") t))
+            (control-meta (evil-keypad--keymap-has-ctrl-meta-bindings-p current-map)))
+        nil))))
+
 (defun evil-keypad--execute (command)
   "Execute COMMAND."
   (condition-case err
@@ -188,7 +217,16 @@ Set based on the first action/key of the sequence.")
         (call-interactively command))
     (error (message "Error executing %s: %s" command err))))
 
-(declare-function evil-keypad--try-execute "evil-keypad")
+(defun evil-keypad--try-execute ()
+  "Check current sequence, execute/fallback, or update echo/which-key. Returns t to exit."
+  (if evil-keypad--pending-modifier (evil-keypad--display-pending-state)
+    (let ((seq-str (evil-keypad--format-sequence evil-keypad--keys)))
+      (if (string-empty-p seq-str) (progn (message "") nil)
+        (let* ((seq-vec (kbd seq-str)) (binding (key-binding seq-vec t)))
+          (cond
+           ((keymapp binding) (evil-keypad--handle-prefix-binding binding seq-str))
+           ((commandp binding) (evil-keypad--handle-command-binding binding seq-str))
+           (t (evil-keypad--handle-unbound-sequence seq-str))))))))
 
 (defun evil-keypad--quit ()
   "Internal cleanup for keypad."
@@ -233,7 +271,7 @@ Set based on the first action/key of the sequence.")
   (message "%s%s"
            (if evil-keypad--keys (concat (evil-keypad--format-sequence evil-keypad--keys) " ") "")
            (cl-case evil-keypad--pending-modifier
-             (meta "M-") (both "C-M-") (literal "_")))
+             (meta "M-") (control-meta "C-M-") (literal "_")))
   nil)
 
 (defun evil-keypad--handle-prefix-binding (binding seq-str)
@@ -283,19 +321,6 @@ Returns t to exit, nil to continue (if fallback leads to new prefix)."
       (evil-keypad--quit)
       t))))
 
-(defun evil-keypad--try-execute ()
-  "Check current sequence, execute/fallback, or update echo/which-key. Returns t to exit loop."
-  (if evil-keypad--pending-modifier
-      (evil-keypad--display-pending-state)
-    (let ((seq-str (evil-keypad--format-sequence evil-keypad--keys)))
-      (if (string-empty-p seq-str)
-          (progn (message "") nil) ; Clear echo and continue
-        (let* ((seq-vec (kbd seq-str)) (binding (key-binding seq-vec t)))
-          (cond
-           ((keymapp binding) (evil-keypad--handle-prefix-binding binding seq-str))
-           ((commandp binding) (evil-keypad--handle-command-binding binding seq-str))
-           (t (evil-keypad--handle-unbound-sequence seq-str))))))))
-
 (defun evil-keypad--set-new-pending-modifier (event)
   "Handle EVENT when it's a new modifier trigger (m, g, SPC). Returns nil."
   (let ((is-first-key-action (null evil-keypad--keys)))
@@ -304,7 +329,7 @@ Returns t to exit, nil to continue (if fallback leads to new prefix)."
       (setq evil-keypad--pending-modifier 'meta)
       (when is-first-key-action (setq evil-keypad--control-inducing-sequence-p t)))
      ((eq event evil-keypad-C-M-trigger)
-      (setq evil-keypad--pending-modifier 'both)
+      (setq evil-keypad--pending-modifier 'control-meta)
       (when is-first-key-action (setq evil-keypad--control-inducing-sequence-p t)))
      ((eq event evil-keypad-literal-trigger) ; `current-event-is-new-trigger` ensures keys not nil
       (setq evil-keypad--pending-modifier 'literal))))
@@ -342,14 +367,27 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
   (let ((cmd (lookup-key evil-keypad-state-keymap (vector event))))
     (if cmd (call-interactively cmd)
       (let ((mod-from-pending evil-keypad--pending-modifier)
-            (current-event-is-new-trigger
-             (or (eq event evil-keypad-M-trigger)
-                 (eq event evil-keypad-C-M-trigger)
-                 (and evil-keypad--keys (eq event evil-keypad-literal-trigger)))))
-        (setq evil-keypad--pending-modifier nil)
-        (if (and (not mod-from-pending) current-event-is-new-trigger)
-            (evil-keypad--set-new-pending-modifier event)
-          (evil-keypad--process-resolved-key event mod-from-pending))))))
+            (key-is-m-trigger (eq event evil-keypad-M-trigger))
+            (key-is-cm-trigger (eq event evil-keypad-C-M-trigger))
+            (key-is-spc-trigger (and evil-keypad--keys (eq event evil-keypad-literal-trigger))))
+        (setq evil-keypad--pending-modifier nil) ; Clear pending from previous step
+        (cond
+         ;; Case 1: Event is M-trigger, no mod pending, AND context allows Meta
+         ((and (not mod-from-pending) key-is-m-trigger (evil-keypad--context-allows-modifier-type-p 'meta))
+          (evil-keypad--set-new-pending-modifier event))
+
+         ;; Case 2: Event is C-M-trigger, no mod pending, AND context allows Ctrl-Meta
+         ((and (not mod-from-pending) key-is-cm-trigger (evil-keypad--context-allows-modifier-type-p 'control-meta))
+          (evil-keypad--set-new-pending-modifier event))
+
+         ;; Case 3: Event is SPC trigger, no mod pending
+         ((and (not mod-from-pending) key-is-spc-trigger)
+          (evil-keypad--set-new-pending-modifier event)) ; SPC does not require context check
+
+         ;; Case 4: Event consumes a pending modifier OR is a regular data key
+         ;; This includes M/C-M triggers if they didn't trigger above because context didn't allow
+         (t
+          (evil-keypad--process-resolved-key event mod-from-pending)))))))
 
 ;;----------------------------------------
 ;; Main Entry Point
