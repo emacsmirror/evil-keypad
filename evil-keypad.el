@@ -5,7 +5,7 @@
 ;; Maintainer: Achyudh Ram <mail@achyudh.me>
 ;; Created: 2025-05-03
 ;; Package-Requires: ((emacs "29.1") (which-key "3.0"))
-;; Version: 0.1.2
+;; Version: 0.1.3
 ;; Keywords: evil, keypad, modal, command, dispatch
 ;; URL: https://github.com/achyudh/evil-keypad
 
@@ -83,6 +83,17 @@ Set based on the first action/key of the sequence.")
 ;;----------------------------------------
 
 ;;;###autoload
+(defcustom evil-keypad-activation-trigger (kbd "SPC")
+  "Key to activate `evil-keypad-start` globally when `evil-keypad-global-mode` is on.
+Works in Evil states defined by `evil-keypad-activation-states`."
+  :type 'string :group 'evil-keypad)
+
+;;;###autoload
+(defcustom evil-keypad-activation-states '(normal visual emacs)
+  "A list of Evil states where the `evil-keypad-activation-trigger` should be active."
+  :type '(repeat symbol) :group 'evil-keypad)
+
+;;;###autoload
 (defcustom evil-keypad-M-trigger ?m
   "Character entered in keypad to trigger the Meta modifier for the next key."
   :type 'character :group 'evil-keypad)
@@ -113,6 +124,52 @@ for the next key."
   "Character used as the first key in keypad to represent the C-h prefix."
   :type 'character :group 'evil-keypad)
 
+;;----------------------------------------
+;; Global Trigger Activation
+;;----------------------------------------
+
+(defvar evil-keypad-global-activation-map (make-sparse-keymap)
+  "Keymap for `evil-keypad-global-mode`.")
+
+(defun evil-keypad--setup-global-activation-bindings ()
+  "Set up bindings in `evil-keypad-global-activation-map` for target states.
+Assumes `evil.el` is loaded."
+  (when (and (fboundp 'evil-make-intercept-map) (fboundp 'evil-define-key))
+    (dolist (state evil-keypad-activation-states)
+      (evil-make-intercept-map
+       (evil-get-auxiliary-keymap evil-keypad-global-activation-map state t t)
+       state)
+      (evil-define-key state evil-keypad-global-activation-map
+        evil-keypad-activation-trigger #'evil-keypad-start))))
+
+(defun evil-keypad--clear-global-activation-bindings ()
+  "Clear bindings from `evil-keypad-global-activation-map` for target states."
+  (when (fboundp 'evil-define-key)
+    (dolist (state evil-keypad-activation-states)
+      (evil-define-key state evil-keypad-global-activation-map
+        evil-keypad-activation-trigger nil))))
+
+;;;###autoload
+(define-minor-mode evil-keypad-global-mode
+  "Enable a global high-precedence trigger for `evil-keypad-start`.
+Activates `evil-keypad-start` via `evil-keypad-activation-trigger`
+in Evil states defined by `evil-keypad-activation-states`."
+  :global t
+  :lighter nil ; Example: " EKAct"
+  :keymap evil-keypad-global-activation-map
+  (if evil-keypad-global-mode
+      (if (featurep 'evil)
+          (evil-keypad--setup-global-activation-bindings)
+        (with-eval-after-load 'evil
+          (evil-keypad--setup-global-activation-bindings)))
+    (when (featurep 'evil) ; Only clear if evil functions are available
+      (evil-keypad--clear-global-activation-bindings))))
+
+;; Fallback setup if evil loads after this mode was already enabled (e.g., via customize)
+(with-eval-after-load 'evil
+  (when (and (boundp 'evil-keypad-global-mode)
+             evil-keypad-global-mode)
+    (evil-keypad--setup-global-activation-bindings)))
 
 ;;----------------------------------------
 ;; Formatting Functions
