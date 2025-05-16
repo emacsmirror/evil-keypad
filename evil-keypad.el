@@ -82,27 +82,33 @@ Set based on the first action/key of the sequence.")
 ;; Customization Variables (Triggers)
 ;;----------------------------------------
 
+;;;###autoload
 (defcustom evil-keypad-M-trigger ?m
   "Character entered in keypad to trigger the Meta modifier for the next key."
   :type 'character :group 'evil-keypad)
 
+;;;###autoload
 (defcustom evil-keypad-C-M-trigger ?g
   "Character entered in keypad to trigger the Control-Meta modifier for the next key."
   :type 'character :group 'evil-keypad)
 
+;;;###autoload
 (defcustom evil-keypad-literal-trigger ?\s ; Space character
   "Character entered in keypad (after first key) to trigger literal interpretation
-\(no automatic Control modifier) for the next key."
+for the next key."
   :type 'character :group 'evil-keypad)
 
+;;;###autoload
 (defcustom evil-keypad-C-x-trigger ?x
   "Character entered as the first key in keypad to represent the C-x prefix."
   :type 'character :group 'evil-keypad)
 
+;;;###autoload
 (defcustom evil-keypad-C-c-trigger ?c
   "Character entered as the first key in keypad to represent the C-c prefix."
   :type 'character :group 'evil-keypad)
 
+;;;###autoload
 (defcustom evil-keypad-C-h-trigger ?h
   "Character used as the first key in keypad to represent the C-h prefix."
   :type 'character :group 'evil-keypad)
@@ -418,6 +424,7 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
 ;; Main Entry Point
 ;;----------------------------------------
 
+;;;###autoload
 (defun evil-keypad-start ()
   "Start the Evil Keypad transient mode."
   (interactive)
