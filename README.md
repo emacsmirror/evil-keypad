@@ -2,9 +2,9 @@
 
 ## What Is Evil Keypad?
 
-**Evil Keypad** is a transient key dispatch system for Emacs Evil users. Inspired by [Meow's Keypad](https://github.com/meow-edit/meow) and [God Mode](https://github.com/emacsorphanage/god-mode), it provides a fast and ergonomic way to enter Emacs commands—like `C-x C-f`, `M-x`, or `C-c a`—without holding modifier keys.
+**Evil Keypad** is a transient key dispatch system for Emacs Evil users. Inspired by [Meow's Keypad](https://github.com/meow-edit/meow) and [God Mode](https://github.com/emacsorphanage/god-mode), it provides a fast and ergonomic way to enter Emacs commands like `C-x C-f`, `C-c C-x C-c`, or `C-u 4 C-x ^` without holding modifier keys.
 
-After pressing a trigger key (e.g., `,` or `SPC` in Evil normal state), you enter a short sequence of unmodified keys. Evil Keypad interprets this sequence into a standard Emacs keybinding and executes the resulting command, then automatically exits. Think modal input for commands, no chording, fewer custom leader keymaps needed.
+After pressing a trigger key (e.g., `,` or `SPC` in Evil normal state), you enter a short sequence of unmodified keys. Evil Keypad interprets this sequence into a standard Emacs keybinding and executes the resulting command, then automatically exits. Think modal input for commands with no chording and fewer custom leader keymaps.
 
 ## Why Evil Keypad?
 
@@ -14,10 +14,10 @@ Meow's Keypad introduced an elegant solution by translating sequences of simple 
 
 **Evil Keypad is designed to:**
 
-* Execute `C-x`, `C-c`, `M-` (Meta), and `C-M-` (Control-Meta) based sequences using simple, sequential keypresses.
-* Integrate smoothly with Evil's modal editing (or be used standalone).
-* Preserve Emacs's native command namespace—no rebinding of standard commands is necessary.
-* Provide live suggestions for next keys via `which-key` after a prefix is entered.
+* Make Emacs commands ergonomic by replacing modifier key chords with simple sequential keypresses
+* Guide you through command sequences with live suggestions and completions via `which-key`
+* Work naturally with Evil's modal editing while remaining useful for non-Evil users
+* Preserve all native Emacs keybindings without any manual rebinding needed
 
 ## Installation
 
