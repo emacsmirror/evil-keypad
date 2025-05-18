@@ -10,13 +10,13 @@ After pressing a trigger key (e.g., `,` or `SPC` in Evil normal state), you ente
 
 Standard Emacs bindings, while powerful, can feel cumbersome when integrated with a modal editing paradigm like Evil. Holding `Ctrl` or `Meta` for multi-step command chains can break the ergonomic flow. While leader key setups (e.g., via `general.el`) mitigate this, they often require extensive manual configuration, as many commands might need explicit rebinding.
 
-Meow’s *Keypad* introduced an elegant solution by translating sequences of simple keys into standard Emacs bindings on the fly. However, adopting Meow typically means forgoing Evil’s rich editing model. Evil Keypad aims to avoid this tradeoff: it brings the keypad translation concept to Evil users (and others) *without* requiring them to discard existing muscle memory or text editing workflows.
+Meow's Keypad introduced an elegant solution by translating sequences of simple keys into standard Emacs bindings on the fly. However, adopting Meow typically means forgoing Evil's rich editing model. Evil Keypad aims to avoid this tradeoff: it brings the keypad translation concept to Evil users (and others) without requiring them to discard existing muscle memory or text editing workflows.
 
 **Evil Keypad is designed to:**
 
 * Execute `C-x`, `C-c`, `M-` (Meta), and `C-M-` (Control-Meta) based sequences using simple, sequential keypresses.
-* Integrate smoothly with Evil’s modal editing (or be used standalone).
-* Preserve Emacs’s native command namespace—no rebinding of standard commands is necessary.
+* Integrate smoothly with Evil's modal editing (or be used standalone).
+* Preserve Emacs's native command namespace—no rebinding of standard commands is necessary.
 * Provide live suggestions for next keys via `which-key` after a prefix is entered.
 
 ## Installation
@@ -27,18 +27,13 @@ Evil Keypad is not yet available on MELPA. For now, install it manually or via `
 
 This requires Emacs 29+ (for built-in VC package management) or an appropriately configured `use-package` setup that can fetch from Git.
 
-```emacs-lisp
+```elisp
 (use-package evil-keypad
-  :vc (:url "https://github.com/achyudh/evil-keypad" :branch "main") ; Ensure URL is correct
-  :ensure t ; If your use-package setup supports :ensure with :vc
+  :vc (:url "https://github.com/achyudh/evil-keypad")
+  :ensure t
   :after evil ; Load after Evil if you're an Evil user
   :config
-  (require 'evil-keypad) ; Ensure it's required before binding
-  ;; Example binding for Evil normal state
-  (define-key evil-normal-state-map (kbd ",") #'evil-keypad-start) ; Using comma as an example
-  ;; For a global binding (non-Evil or for other states):
-  ;; (global-set-key (kbd "C-;") #'evil-keypad-start)
-  )
+  (evil-keypad-global-mode 1))
 ```
 
 ### Manual Installation
@@ -47,33 +42,36 @@ This requires Emacs 29+ (for built-in VC package management) or an appropriately
     ```bash
     git clone https://github.com/achyudh/evil-keypad.git /path/to/your/emacs/site-lisp/evil-keypad
     ```
-    *(Adjust path as needed)*
 2.  **Add to `load-path` in your Emacs configuration (`init.el` or `~/.emacs.d/init.el`):**
-    ```emacs-lisp
+    ```elisp
     (add-to-list 'load-path "/path/to/your/emacs/site-lisp/evil-keypad")
     (require 'evil-keypad)
-
-    ;; Example binding (see "Binding the Trigger Key" below)
-    (with-eval-after-load 'evil
-      (define-key evil-normal-state-map (kbd "SPC") #'evil-keypad-start))
+    (evil-keypad-global-mode 1)
     ```
 
 ## Usage
 
-### Binding the Trigger Key
+### Activating Evil Keypad
 
-After installation, bind the `evil-keypad-start` command to a key of your choice to activate the keypad.
+You have two options for activating the keypad:
 
-**For Evil users (example: `,` or `SPC` in normal state):**
-```emacs-lisp
-(with-eval-after-load 'evil ; Ensure Evil is loaded first
-  (define-key evil-normal-state-map (kbd "SPC") #'evil-keypad-start))
-```
+1. **Global Activation Mode (Recommended)**:
+   Enable `evil-keypad-global-mode` to automatically bind the trigger key in specified Evil states:
+   ```elisp
+   (evil-keypad-global-mode 1)
+   ```
+   You can customize:
+   - `evil-keypad-activation-trigger` (default: `SPC`) - The key that activates the keypad
+   - `evil-keypad-activation-states` (default: `'(normal visual emacs)`) - Evil states where the trigger is active
 
-**For non-Evil users or other states (example: `C-;`):**
-```emacs-lisp
-(global-set-key (kbd "C-;") #'evil-keypad-start)
-```
+2. **Manual Key Binding**:
+   Bind `evil-keypad-start` to your preferred key:
+   ```elisp
+   ;; For Evil Normal state:
+   (define-key evil-normal-state-map (kbd "SPC") #'evil-keypad-start)
+   ;; For global binding:
+   (global-set-key (kbd "C-;") #'evil-keypad-start)
+   ```
 
 ### Using Evil Keypad
 
@@ -81,68 +79,94 @@ After installation, bind the `evil-keypad-start` command to a key of your choice
 2.  Type a sequence of keys according to the translation logic detailed in the next section.
     * If you type a sequence that translates to an Emacs prefix (e.g., keypad `x` for `C-x`), the echo area will show the prefix with a dash (e.g., `C-x-`).
     * If you type a modifier trigger (`m`, `g`, `SPC`), the echo area indicates the pending modifier (e.g., `C-x M-`).
-    * If `which-key-mode` is active, a `which-key` popup will appear after `which-key-idle-delay`. It displays the standard Emacs keymap associated with the translated prefix (e.g., `ctl-x-map`). The echo area will show the current Evil Keypad sequence (e.g., `C-x-`).
-2.  Once a complete command is recognized, it executes, and the keypad automatically exits.
-3.  If the sequence is unbound, an `<sequence> is undefined` message appears in the `*Messages*` buffer, and the keypad exits.
-4.  Press `ESC` anytime to cancel and exit the keypad.
-5.  Press `Backspace` or `DEL` to undo the last keypress or pending modifier.
+    * If `which-key-mode` is active, a `which-key` popup will appear showing available commands.
+3.  To pass numeric arguments to commands (like `C-u 4` or `M-5`):
+    * Press `u` for universal argument (`C-u`)
+    * Press `-` for negative argument (`M--`)
+    * Press digits `0-9` for numeric arguments
+    * These can be combined: `u u` = `C-u C-u`, `- 5` = `M-- 5`, etc.
+4.  Once a complete command is recognized, it executes, and the keypad automatically exits.
+5.  If the sequence is unbound, an `<sequence> is undefined` message appears, and the keypad exits.
+6.  Press `ESC` anytime to cancel and exit the keypad.
+7.  Press `Backspace` or `DEL` to undo the last keypress, pending modifier, or prefix argument.
 
 ### Key Translation Logic
 
-Evil Keypad uses the concept of **"Control-Persistent Prefixes."** When a sequence starts with such a prefix, subsequent keys (unless the literal modifier is used) will default to being `Ctrl`-modified.
+Evil Keypad uses a systematic approach to translate simple key sequences into Emacs commands with modifiers. The translation system distinguishes between the first key you type (which often determines what kind of command sequence you're starting) and subsequent keys. When you start typing, special keys like `x`, `c`, and `h` trigger common Emacs command prefixes (`C-x`, `C-c`, `C-h`), while `m` and `g` set up Meta and Control-Meta modifiers. Any other key is treated as a shortcut for a `C-c` command sequence. These trigger keys can be customized—see the Customization section below.
+
+A key feature of the translation system is the concept of **Ctrl-persistent prefixes**. These are command prefixes (like `C-c` or `C-x`) that, when explicitly triggered, cause subsequent keys to default to being `Ctrl`-modified unless a modifier trigger is used. This behavior mimics how many Emacs users naturally think about command sequences - for instance, `C-x C-f` is often thought of as "Control-x, then Control-f" rather than two separate chord keypresses.
 
 * **First Key Typed:**
-    * `x` (default): Translates to `C-x`. This prefix **is Control-Persistent.**
-    * `c` (default): Translates to `C-c`. This prefix **is Control-Persistent.**
-    * `h` (default): Translates to `C-h`. This prefix **is NOT Control-Persistent.** Subsequent keys default to literal.
-    * `m` (default): Sets a pending `M-` (Meta) modifier for the *next* key. `M-` initiated sequences **are Control-Persistent.**
-    * `g` (default): Sets a pending `C-M-` (Control-Meta) modifier for the *next* key. `C-M-` initiated sequences **are Control-Persistent.**
-    * Any other key `k` (e.g., `a`, `f`, `SPC`): Interpreted as `C-c k`. This implicitly-started `C-c` prefix **is NOT Control-Persistent.** Subsequent keys default to literal.
+    * `x`: Translates to `C-x`. This is a Ctrl-persistent prefix and subsequent keys will be `Ctrl`-modified unless a modifier trigger is used.
+    * `c`: Translates to `C-c`. This is a Ctrl-persistent prefix and subsequent keys will be `Ctrl`-modified unless a modifier trigger is used.
+    * `h`: Translates to `C-h`. This is not a Ctrl-persistent prefix and subsequent keys default to literal.
+    * `m`: Sets a pending `M-` (Meta) modifier for the next key. `M-` initiated prefixes are Ctrl-persistent and subsequent keys will be `Ctrl`-modified unless a modifier trigger is used.
+    * `g`: Sets a pending `C-M-` (Control-Meta) modifier for the next key. `C-M-` initiated prefixes are Ctrl-persistent and subsequent keys will be `Ctrl`-modified unless a modifier trigger is used.
+    * Any other key `k` (e.g., `a`, `f`, `SPC`): Interpreted as `C-c k`. This implicitly-started `C-c` is not a Ctrl-persistent prefix and subsequent keys default to literal.
 
 * **Subsequent Keys:**
     * `m`, `g`: Set pending `M-` or `C-M-` modifier for the *next* key. Does not change the existing Control-Persistent status of the sequence.
     * `SPC` (if not the first key): Sets a pending `literal` modifier for the *next* key. This makes only the next key literal and does not change the Control-Persistent status.
     * **If a modifier was pending (`M-`, `C-M-`, `literal`):** It's applied to the current typed key.
     * **If no modifier was pending:**
-        * If the sequence is currently in a **Control-Persistent** context (started by `x`, `c` trigger, `m` trigger, or `g` trigger): The current key `k` is modified with `Control` (becomes `C-k`).
-        * Else (context is not Control-Persistent, e.g., after `h` trigger or `C-c k` from "other first key"): The current key `k` is treated literally.
+        * If the sequence is Ctrl-persistent (after `x`, `c`, or any use of `m`/`g`): The current key `k` is modified with `Control` (becomes `C-k`).
+        * Otherwise (after `h` trigger or after implicit `C-c k`): The current key `k` is treated literally.
 
-* **Case:** Uppercase letters interact as expected with `Control` and `Meta` modifiers (e.g., `x F` translates to `C-x C-S-f`, but `m F` translates to `M-F`).
+* **Case:** Uppercase letters interact as expected with `Control` and `Meta` modifiers (e.g., `x F` translates to `C-x C-S-f` and `m F` translates to `M-F`).
+
+* **Modifier Handling in Keymaps:** When using `m` or `g` after a prefix, Evil Keypad first checks if the current keymap supports Meta or Control-Meta modified keys directly. For example:
+    * In `C-x` keymap: `x m f` becomes `C-x M-f` because `C-x` has bindings that start with `M-`
+    * In other keymaps: If no Meta bindings exist, the modifier key itself is treated as a regular key with Control modifier, so `x m f` would become `C-x C-m C-f`
+    * This behavior ensures maximum compatibility with Emacs keymaps while preserving the ability to enter Meta-modified commands when available.
+
+* **Fallback Logic:** If a sequence ending in an implicitly `Control`-modified key (e.g., `x f` -\> `C-x C-f`) is undefined, the keypad automatically attempts the sequence with a literal final key (`C-x f`). This fallback can result in a command or a new prefix state (with `which-key` updating). Fallback does *not* occur if the original modifier was an explicit `M-` or `C-M-` from an `m` or `g` trigger.
 
 **Examples:**
 
-| Keypad Input | Translated Emacs Sequence | Notes                                                         |
-| :----------- | :------------------------ | :------------------------------------------------------------ |
-| `a`          | `C-c a`                   | Implicit `C-c` is *not* Control-Persistent.                 |
-| `a s`        | `C-c a s`                 | `s` is literal as context wasn't Control-Persistent.        |
-| `c`          | `C-c`                     | Explicit `C-c` (from `c` trigger) *is* Control-Persistent.    |
-| `c a`        | `C-c C-a`                 | `a` becomes `C-a` due to Control-Persistent context.        |
-| `x f`        | `C-x C-f`                 | Explicit `C-x` (from `x` trigger) *is* Control-Persistent.    |
-| `x SPC t`    | `C-x t`                   | `SPC` makes `t` literal; context remains Control-Persistent. |
-| `x SPC t a`  | `C-x t C-a`               | `t` is literal; `a` gets `C-` from Control-Persistent context. |
-| `m s`        | `M-s`                     | `m` sets pending `M-`; sequence start *is* Control-Persistent. |
-| `m x f`      | `M-x C-f`                 | `x` is `M-x`; `f` becomes `C-f` due to Control-Persistent context from `M-`. |
-| `h v`        | `C-h v`                   | `C-h` (from `h` trigger) is *not* Control-Persistent.       |
-
+| Keypad Input  | Translated Emacs Sequence | Notes                                                                         |
+|:------------- |:------------------------- |:----------------------------------------------------------------------------- |
+| `a`           | `C-c a`                   | Implicit `C-c` does not start a Ctrl-persistent sequence                      |
+| `a s`         | `C-c a s`                 | Keys are not `Ctrl`-modified as this is not a Ctrl-persistent sequence        |
+| `c`           | `C-c`                     | `c` starts a Ctrl-persistent sequence                                         |
+| `c a`         | `C-c C-a`                 | In a Ctrl-persistent sequence, keys will be `Ctrl`-modified                   |
+| `x f`         | `C-x C-f`                 | `x` also starts a Ctrl-persistent sequence                                    |
+| `x SPC t`     | `C-x t`                   | `SPC` makes next key literal in a Ctrl-persistent sequence                    |
+| `x SPC t a`   | `C-x t C-a`               | After literal `t`, sequence is still Ctrl-persistent                          |
+| `m s`         | `M-s`                     | `m` applies Meta to next key and makes sequence Ctrl-persistent               |
+| `m x f`       | `M-x C-f`                 | After `M-x`, `f` will be `Ctrl`-modified as `m` makes the sequence Ctrl-persistent |
+| `h v`         | `C-h v`                   | `h` does not start a Ctrl-persistent sequence                                 |
+| `x m f`       | `C-x M-f`                 | `m` handling depends on keymap, here `C-x` has bindings starting with `M-`    |
+| `u f`         | `C-u C-f`                 | Universal argument followed by command                                        |
+| `u u f`       | `C-u C-u C-f`             | Multiple universal arguments stack                                            |
+| `- f`         | `M-- C-f`                 | Negative argument                                                             |
+| `5 f`         | `M-5 C-f`                 | Numeric argument                                                              |
+| `- 5 f`       | `M--5 C-f`                | Negative numeric argument                                                     |
 
 ## Which-Key Integration
 
-* Evil Keypad integrates with `which-key` to show available bindings after a prefix is entered.
-* This requires the `which-key` package to be installed and `which-key-mode` to be enabled (`M-x which-key-mode`).
-* *Note:* `which-key` is bundled with Emacs starting from version 30. For Emacs 29 and earlier, ensure the `which-key` package is installed (e.g., from ELPA/NonGNU ELPA). Evil Keypad requires Emacs >= 29.1.
+Evil Keypad integrates deeply with `which-key` to provide interactive command discovery:
+
+* When the keypad starts, which-key shows available first-key options (x, c, h, m, g, etc.).
+* After entering a prefix, which-key shows the standard Emacs keymap for that prefix.
+* The display updates automatically as you type modifiers or keys.
+* *Note:* `which-key` is bundled with Emacs starting from version 30. For Emacs 29 and earlier, ensure the `which-key` package is installed (e.g., from ELPA/NonGNU ELPA) and `which-key-mode` is enabled.
 
 ## Customization
 
-You can customize the trigger keys used by Evil Keypad via `M-x customize-group RET evil-keypad RET`.
+You can customize Evil Keypad via `M-x customize-group RET evil-keypad RET`. Here are the key variables:
 
-| Variable                        | Default | Purpose                                                          |
-| :------------------------------ | :------ | :--------------------------------------------------------------- |
-| `evil-keypad-M-trigger`         | `m`     | Key to trigger `M-` for the next input.                          |
-| `evil-keypad-C-M-trigger`       | `g`     | Key to trigger `C-M-` for the next input.                        |
-| `evil-keypad-literal-trigger`   | `SPC`   | Key to trigger literal next input.                               |
-| `evil-keypad-C-x-trigger`       | `x`     | First key to represent the `C-x` prefix.                         |
-| `evil-keypad-C-c-trigger`       | `c`     | First key to represent the `C-c` prefix.                         |
-| `evil-keypad-C-h-trigger`       | `h`     | First key to represent the `C-h` prefix.                         |
+| Variable                                 | Default | Purpose                                                             |
+| :--------------------------------------- | :------ | :------------------------------------------------------------------ |
+| `evil-keypad-activation-trigger`         | `SPC`   | Key that activates the keypad in `evil-keypad-global-mode`          |
+| `evil-keypad-activation-states`          | `'(normal visual emacs)` | Evil states where the activation trigger is active |
+| `evil-keypad-M-trigger`                  | `m`     | Key to trigger `M-` for the next input                              |
+| `evil-keypad-C-M-trigger`                | `g`     | Key to trigger `C-M-` for the next input                            |
+| `evil-keypad-literal-trigger`            | `SPC`   | Key to trigger literal next input                                   |
+| `evil-keypad-C-x-trigger`                | `x`     | First key to represent the `C-x` prefix                             |
+| `evil-keypad-C-c-trigger`                | `c`     | First key to represent the `C-c` prefix                             |
+| `evil-keypad-C-h-trigger`                | `h`     | First key to represent the `C-h` prefix                             |
+| `evil-keypad-universal-argument-trigger` | `u`     | Key to emulate universal argument (`C-u`)                           |
+| `evil-keypad-negative-argument-trigger`  | `-`     | Key to emulate negative argument (`M--`)                            |
 
 ## License
 
