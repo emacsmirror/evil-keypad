@@ -212,16 +212,10 @@ in Evil states defined by `evil-keypad-activation-states`."
   "Format PREFIX-ARG-VALUE for display in the echo area."
   (cond
    ((null prefix-arg-value) "")
-   ((eq prefix-arg-value '-) "C-u -") ; Raw minus state
-   ((integerp prefix-arg-value) (format "%d" prefix-arg-value))
-   ((listp prefix-arg-value) ; Typically (4), (16) etc. for C-u
-    (let ((val (car prefix-arg-value)))
-      (cond
-       ((eq val 4) "C-u")
-       ((eq val 16) "C-u C-u")
-       ((eq val 64) "C-u C-u C-u")
-       ((and (integerp val) (< val 0)) (format "C-u %d" val)) ; C-u - DIGITS
-       (t (format "C-u %s" val))))))) ; Fallback, e.g. C-u -
+   ((eq prefix-arg-value '-) "C-u -")
+   ((integerp prefix-arg-value) (format "C-u %d" prefix-arg-value))
+   ((listp prefix-arg-value)
+    (format "C-u (%d)" (car prefix-arg-value)))))
 
 ;;----------------------------------------
 ;; Which-Key Integration Logic
@@ -528,7 +522,7 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
           (cond
            ((null arg) '(4))
            ((eq arg '-) '(-4))
-           ((integerp arg) (list (* arg 4)))
+           ((integerp arg) '(4))
            ((listp arg) (list (* (car arg) 4)))
            (t '(4)))))
   nil)
@@ -541,7 +535,6 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
            ((null arg) '-)
            ((eq arg '-) nil)
            ((integerp arg) (* arg -1))
-           ((equal arg '(4)) '(-1))
            ((listp arg) (list (* (car arg) -1)))
            (t '-))))
   nil)
@@ -556,17 +549,9 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
              ((eq arg '-) (* digit-val -1))
              ((integerp arg)
               (if (< arg 0)
-                  (- (* (abs arg) 10) digit-val)
+                  (- (* arg 10) digit-val)
                 (+ (* arg 10) digit-val)))
-             ((listp arg) ; e.g. C-u <digit>
-              (let ((current-val (car arg)))
-                (if (eq current-val '-) ; C-u - <digit> -> make it e.g. C-u -<digit>
-                    (if (= digit-val 0) ; C-u - 0
-                        (list 0) ; C-u 0 is 0
-                      (list (* digit-val -1)))
-                  ;; C-u <digits> or C-u <N> <digit>
-                  (string-to-number (concat (number-to-string (if (numberp current-val) current-val 0))
-                                            (string digit-char))))))
+             ((listp arg) digit-val)
              (t digit-val)))))
   nil)
 
