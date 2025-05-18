@@ -481,16 +481,15 @@ Returns t to exit, nil to continue (if fallback leads to new prefix)."
 
 (defun evil-keypad--set-new-pending-modifier (event)
   "Handle EVENT when it's a new modifier trigger (m, g, SPC). Returns nil."
-  (let ((is-first-command-key (null evil-keypad--keys)))
-    (cond
-     ((eq event evil-keypad-M-trigger)
-      (setq evil-keypad--pending-modifier 'meta)
-      (when is-first-command-key (setq evil-keypad--control-inducing-sequence-p t)))
-     ((eq event evil-keypad-C-M-trigger)
-      (setq evil-keypad--pending-modifier 'control-meta)
-      (when is-first-command-key (setq evil-keypad--control-inducing-sequence-p t)))
-     ((eq event evil-keypad-literal-trigger)
-      (setq evil-keypad--pending-modifier 'literal))))
+  (cond
+   ((eq event evil-keypad-M-trigger)
+    (setq evil-keypad--pending-modifier 'meta
+          evil-keypad--control-inducing-sequence-p t))
+   ((eq event evil-keypad-C-M-trigger)
+    (setq evil-keypad--pending-modifier 'control-meta
+          evil-keypad--control-inducing-sequence-p t))
+   ((eq event evil-keypad-literal-trigger)
+    (setq evil-keypad--pending-modifier 'literal)))
   (evil-keypad--try-execute)
   nil)
 

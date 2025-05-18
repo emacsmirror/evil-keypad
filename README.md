@@ -105,8 +105,9 @@ A key feature of the translation system is the concept of **Ctrl-persistent pref
     * Any other key `k` (e.g., `a`, `f`, `SPC`): Interpreted as `C-c k`. This implicitly-started `C-c` is not a Ctrl-persistent prefix and subsequent keys default to literal.
 
 * **Subsequent Keys:**
-    * `m`, `g`: Set pending `M-` or `C-M-` modifier for the *next* key. Does not change the existing Control-Persistent status of the sequence.
-    * `SPC` (if not the first key): Sets a pending `literal` modifier for the *next* key. This makes only the next key literal and does not change the Control-Persistent status.
+    * `m`: Sets a pending `M-` modifier for the *next* key. Makes the sequence Ctrl-persistent so subsequent keys will be `Ctrl`-modified unless a modifier trigger is used.
+    * `g`: Sets a pending `C-M-` modifier for the *next* key. Makes the sequence Ctrl-persistent so subsequent keys will be `Ctrl`-modified unless a modifier trigger is used.
+    * `SPC` (if not the first key): Sets a pending `literal` modifier for the *next* key only. The key will be inserted without any modifiers.
     * **If a modifier was pending (`M-`, `C-M-`, `literal`):** It's applied to the current typed key.
     * **If no modifier was pending:**
         * If the sequence is Ctrl-persistent (after `x`, `c`, or any use of `m`/`g`): The current key `k` is modified with `Control` (becomes `C-k`).
