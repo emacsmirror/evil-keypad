@@ -29,22 +29,44 @@ Resets evil-keypad internal state before and after each call."
   (let ((evil-keypad--keys nil) ; Isolate state for test run
         (evil-keypad--pending-modifier nil)
         (evil-keypad--control-inducing-sequence-p nil)
-        (evil-keypad--prefix-arg current-prefix-arg) ; Capture if set for test context
+        (evil-keypad--session-active-prefix-arg nil)
         (result-sequence nil))
 
-    ;; evil-keypad--handle-input will call the advised evil-keypad--try-execute,
-    ;; which will return nil. So, evil-keypad--handle-input will also return nil.
-    ;; The dolist will complete all key events.
     (dolist (event key-events-list)
       (evil-keypad--handle-input event))
 
     (setq result-sequence (evil-keypad--format-sequence evil-keypad--keys))
-
-    ;; Call quit to reset any other flags, though state here is let-bound
-    ;; This is important if `evil-keypad--quit` has other side-effects
-    ;; we want to include in testing (e.g. which-key var restoration).
     (evil-keypad--quit)
     result-sequence))
+
+(defun evil-keypad-test--simulate-prefix-arg (key-events-list)
+  "Simulate typing KEY-EVENTS-LIST into evil-keypad for prefix arg testing.
+Returns the current prefix arg value after simulation.
+Resets evil-keypad internal state before and after each call."
+  (let ((evil-keypad--keys nil)
+        (evil-keypad--pending-modifier nil)
+        (evil-keypad--control-inducing-sequence-p nil)
+        (evil-keypad--session-active-prefix-arg nil))
+
+    (dolist (event key-events-list)
+      (evil-keypad--handle-input event))
+
+    (prog1 evil-keypad--session-active-prefix-arg
+      (evil-keypad--quit))))
+
+(defun evil-keypad-test--get-prefix-arg-display (key-events-list)
+  "Simulate typing KEY-EVENTS-LIST and return the formatted prefix arg display.
+Resets evil-keypad internal state before and after each call."
+  (let ((evil-keypad--keys nil)
+        (evil-keypad--pending-modifier nil)
+        (evil-keypad--control-inducing-sequence-p nil)
+        (evil-keypad--session-active-prefix-arg nil))
+
+    (dolist (event key-events-list)
+      (evil-keypad--handle-input event))
+
+    (prog1 (evil-keypad--format-prefix-arg evil-keypad--session-active-prefix-arg)
+      (evil-keypad--quit))))
 
 ;;----------------------------------------
 ;; ERT Test Cases
@@ -129,3 +151,70 @@ Resets evil-keypad internal state before and after each call."
      (should (not evil-keypad--control-inducing-sequence-p))
 
      (evil-keypad--quit)))) ; Ensure cleanup of global state by main code
+
+(ert-deftest evil-keypad-test-numeric-prefix-args ()
+  "Test basic numeric prefix argument handling."
+  (evil-keypad-test-translations-only
+   ;; Single digits
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?5)) 5))
+
+   ;; Multiple digits
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?4 ?2)) 42))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?1 ?2 ?3)) 123))
+
+   ;; Leading zero
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?0)) 0))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?0 ?5)) 5))
+
+   ;; Negative numbers
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?-)) '-))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?- ?5)) -5))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?- ?1 ?2)) -12))
+
+   ;; Toggles with multiple minuses
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?- ?-)) nil))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?- ?- ?-)) '-))))
+
+(ert-deftest evil-keypad-test-universal-prefix-args ()
+  "Test universal argument (C-u) handling."
+  (evil-keypad-test-translations-only
+   ;; Basic universal argument
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?u)) '(4)))
+
+   ;; Multiple universal arguments
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?u ?u)) '(16)))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?u ?u ?u)) '(64)))
+
+   ;; Universal with numbers
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?u ?5)) 5))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?u ?4 ?2)) 42))
+
+   ;; Universal with negative
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?u ?-)) '(-4)))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?- ?u)) '(-4)))
+
+   ;; Numbers before universal
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?5 ?u)) '(4)))
+   (should (equal (evil-keypad-test--simulate-prefix-arg '(?4 ?2 ?u)) '(4)))))
+
+(ert-deftest evil-keypad-test-prefix-arg-display ()
+  "Test prefix argument display formatting."
+  (evil-keypad-test-translations-only
+   ;; Basic numeric display
+   (should (string= (evil-keypad-test--get-prefix-arg-display '(?5)) "C-u 5"))
+   (should (string= (evil-keypad-test--get-prefix-arg-display '(?4 ?2)) "C-u 42"))
+
+   ;; Universal argument display
+   (should (string= (evil-keypad-test--get-prefix-arg-display '(?u)) "C-u"))
+   (should (string= (evil-keypad-test--get-prefix-arg-display '(?u ?u)) "C-u (16)"))
+
+   ;; Negative number display
+   (should (string= (evil-keypad-test--get-prefix-arg-display '(?-)) "C-u -"))
+   (should (string= (evil-keypad-test--get-prefix-arg-display '(?- ?5)) "C-u -5"))
+
+   ;; Complex combinations
+   (should (string= (evil-keypad-test--get-prefix-arg-display '(?u ?-)) "C-u -"))
+   (should (string= (evil-keypad-test--get-prefix-arg-display '(?5 ?u)) "C-u"))
+
+   ;; Empty/nil display
+   (should (string= (evil-keypad-test--get-prefix-arg-display '()) ""))))
