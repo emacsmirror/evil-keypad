@@ -215,7 +215,11 @@ in Evil states defined by `evil-keypad-activation-states`."
    ((eq prefix-arg-value '-) "C-u -")
    ((integerp prefix-arg-value) (format "C-u %d" prefix-arg-value))
    ((listp prefix-arg-value)
-    (format "C-u (%d)" (car prefix-arg-value)))))
+    (let ((val (car prefix-arg-value)))
+      (cond
+       ((eq val 4) "C-u")
+       ((eq val -4) "C-u -")
+       (t (format "C-u (%d)" val)))))))
 
 ;;----------------------------------------
 ;; Which-Key Integration Logic
