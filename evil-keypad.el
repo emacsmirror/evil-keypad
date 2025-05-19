@@ -5,7 +5,7 @@
 ;; Maintainer: Achyudh Ram <mail@achyudh.me>
 ;; Created: 2025-05-03
 ;; Package-Requires: ((emacs "29.1") (which-key "3.0"))
-;; Version: 0.1.4
+;; Version: 0.1.5
 ;; Keywords: evil, keypad, modal, command, dispatch
 ;; URL: https://github.com/achyudh/evil-keypad
 
@@ -44,6 +44,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'evil)
 (require 'which-key nil t) ; Optionally load which-key
 
 ;;----------------------------------------
