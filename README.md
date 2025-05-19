@@ -4,7 +4,7 @@
 
 **Evil Keypad** is a transient key dispatch system for Emacs Evil users. Inspired by [Meow's Keypad](https://github.com/meow-edit/meow) and [God Mode](https://github.com/emacsorphanage/god-mode), it provides a fast and ergonomic way to enter Emacs commands like `C-x C-f`, `C-c C-x C-c`, or `C-u 4 C-x ^` without holding modifier keys.
 
-After pressing a trigger key (e.g., `,` or `SPC` in Evil normal state), you enter a short sequence of unmodified keys. Evil Keypad interprets this sequence into a standard Emacs keybinding and executes the resulting command, then automatically exits. Think modal input for commands with no chording and fewer custom leader keymaps.
+After pressing a trigger key (e.g., `,` or `SPC` in Evil normal state), you enter a short sequence of unmodified keys. Evil Keypad interprets this sequence into a standard Emacs keybinding and executes the resulting command, then automatically exits. Think modal input for native Emacs keybindings with no chording and fewer custom leader keymaps.
 
 ## Why Evil Keypad?
 
@@ -142,6 +142,24 @@ A key feature of the translation system is the concept of **Ctrl-persistent pref
 | `- f`         | `M-- C-f`                 | Negative argument                                                             |
 | `5 f`         | `M-5 C-f`                 | Numeric argument                                                              |
 | `- 5 f`       | `M--5 C-f`                | Negative numeric argument                                                     |
+
+### Custom Leader Key Patterns
+
+Evil Keypad also provides an elegant way to create leader-key-style bindings without explicit configuration. Any key that isn't a special trigger (`x`, `c`, `h`) automatically starts a `C-c` sequence. This means you can organize your custom bindings under `C-c` prefixes, and they become naturally available through Evil Keypad with intuitive sequences. For example, here's how you might set up some Consult commands:
+
+```elisp
+(use-package consult
+  :bind (("C-c SPC" . 'consult-buffer)     ; → SPC SPC
+         ("C-c f" . 'consult-flymake)      ; → SPC f
+         ("C-c i" . 'consult-imenu)        ; → SPC i
+         ("C-c I" . 'consult-imenu-multi)  ; → SPC I
+         ("C-c o a" . 'consult-org-agenda) ; → SPC o a
+         ("C-c s f" . 'consult-fd)         ; → SPC s f
+         ("C-c s r" . 'consult-ripgrep)    ; → SPC s r
+         ("C-c s s" . 'consult-line)))     ; → SPC s s
+```
+
+This gives you the ergonomics of a leader key setup while maintaining the simplicity and discoverability of standard key bindings. You can organize your bindings in a hierarchical way that feels natural (like `s s` for consult-line, `s r` for consult-ripgrep) without additional configuration.
 
 ## Which-Key Integration
 
