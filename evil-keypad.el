@@ -30,14 +30,14 @@
 
 ;;; Commentary:
 ;; Provides `evil-keypad-start', a command to activate a transient
-;; keypad mode inspired by Meow Keypad. Allows entering complex Emacs
+;; keypad mode inspired by Meow Keypad.  Allows entering complex Emacs
 ;; key sequences using a series of single key presses without holding
 ;; down modifier keys.
 ;;
 ;; After triggering the keypad, type a sequence representing modifiers
 ;; and keys (e.g., 'x f' for C-x C-f, 'm x' for M-x, 'a s' for C-c a
-;; s). The keypad translates and executes the corresponding Emacs
-;; command, then exits. Numeric prefix arguments (e.g. C-u 4, M-5)
+;; s).  The keypad translates and executes the corresponding Emacs
+;; command, then exits.  Numeric prefix arguments (e.g. C-u 4, M-5)
 ;; can be initiated using dedicated keypad keys before command keys.
 ;;
 ;; Which-key integration is provided if `which-key-mode` is active,
@@ -60,8 +60,7 @@ MODIFIER is a symbol like \\='literal, \\='control, \\='meta, \\='control-meta.
 KEY-STRING is the result of `single-key-description'.")
 
 (defvar evil-keypad--pending-modifier nil
-  "Stores the pending modifier symbol (\\='meta, \\='control-meta, \\='literal) triggered
-by the previous key press, to be applied to the next key.")
+  "Stores the pending modifier symbol to be applied to the next key.")
 
 (defvar evil-keypad--session-initial-prefix-arg nil
   "Prefix argument active in Emacs before this keypad session started.")
@@ -92,8 +91,8 @@ Set based on the first command key of the sequence (e.g. x, c, m, g).")
 
 ;;;###autoload
 (defcustom evil-keypad-activation-trigger (kbd "SPC")
-  "Key to activate `evil-keypad-start` globally.  Works when
-`evil-keypad-global-mode` is non-nil and Evil state is one of
+  "Key to activate `evil-keypad-start` globally.
+Works when `evil-keypad-global-mode` is non-nil and Evil state is one of
 `evil-keypad-activation-states`."
   :type 'string :group 'evil-keypad)
 
@@ -278,7 +277,7 @@ If BINDING is non‑nil, pass it to that function; otherwise call with no args."
 
 (defun evil-keypad--trigger-which-key-display (&optional target-keymap)
   "Show relevant bindings using which-key.
-If TARGET-KEYMAP is non-nil, display that Emacs keymap. Otherwise, show
+If TARGET-KEYMAP is non-nil, display that Emacs keymap.  Otherwise, show
 the initial evil-keypad trigger keys."
   (evil-keypad--cancel-display-timer)
   (condition-case err
@@ -421,11 +420,13 @@ Returns t to exit."
 (define-key evil-keypad-state-keymap (kbd "DEL") #'evil-keypad-undo)
 
 (defun evil-keypad--echo (format-string &rest args)
-  "Display a message in the echo area."
+  "Display a message in the echo area with a \"Keypad:\" prefix.
+FORMAT-STRING is the format string passed to `format`.
+ARGS are the arguments for the format string."
   (message "Keypad: %s" (apply #'format format-string args)))
 
 (defun evil-keypad--display-pending-state ()
-  "Display the current prefix arg, sequence, and pending modifier. Returns nil."
+  "Display the current prefix arg, sequence, and pending modifier.  Returns nil."
   (let ((prefix-str (evil-keypad--format-prefix-arg evil-keypad--session-active-prefix-arg))
         (seq-str (if evil-keypad--keys (evil-keypad--format-sequence evil-keypad--keys) ""))
         (pending-mod-str (cl-case evil-keypad--pending-modifier
@@ -442,7 +443,9 @@ Returns t to exit."
 
 (defun evil-keypad--handle-prefix-binding (binding seq-str)
   "Handle a key sequence that maps to a prefix (keymap).
-Displays prefix in echo area and schedules which-key. Returns nil."
+Displays prefix in echo area and schedules which-key display.  Returns nil.
+BINDING is the keymap the key sequence maps to.
+SEQ-STR is the formatted key sequence string."
   (let ((prefix-str (evil-keypad--format-prefix-arg evil-keypad--session-active-prefix-arg)))
     (if (string-empty-p prefix-str)
         (evil-keypad--echo "%s-" seq-str)
@@ -451,7 +454,8 @@ Displays prefix in echo area and schedules which-key. Returns nil."
   nil)
 
 (defun evil-keypad--handle-command-binding (binding _seq-str)
-  "Handle a key sequence that maps to a command. Executes and returns t."
+  "Handle a key sequence that maps to a command.  Executes and returns t.
+BINDING is the command to execute with the current prefix argument."
   (evil-keypad--cancel-display-timer-and-clear)
   (evil-keypad--execute binding)
   t)
@@ -488,7 +492,7 @@ Returns t to exit, nil to continue (if fallback leads to new prefix)."
       t))))
 
 (defun evil-keypad--set-new-pending-modifier (event)
-  "Handle EVENT when it's a new modifier trigger (m, g, SPC). Returns nil."
+  "Handle EVENT when it's a new modifier trigger (m, g, SPC).  Returns nil."
   (cond
    ((eq event evil-keypad-M-trigger)
     (setq evil-keypad--pending-modifier 'meta
@@ -530,7 +534,7 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
   (evil-keypad--try-execute))
 
 (defun evil-keypad--handle-universal-argument-trigger ()
-  "Handle the universal argument trigger \\='u\\='. Returns nil."
+  "Handle the universal argument trigger \\='u\\='.  Returns nil."
   (setq evil-keypad--session-active-prefix-arg
         (let ((arg evil-keypad--session-active-prefix-arg))
           (cond
@@ -542,7 +546,7 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
   nil)
 
 (defun evil-keypad--handle-negative-argument-trigger ()
-  "Handle the negative argument trigger '-'. Returns nil."
+  "Handle the negative argument trigger '-'.  Returns nil."
   (setq evil-keypad--session-active-prefix-arg
         (let ((arg evil-keypad--session-active-prefix-arg))
           (cond
@@ -554,7 +558,8 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
   nil)
 
 (defun evil-keypad--handle-digit-argument-trigger (digit-char)
-  "Handle a digit char for prefix argument. Returns nil."
+  "Handle a digit character for building a numeric prefix argument.  Returns nil.
+DIGIT-CHAR is the digit character (0-9) that was pressed."
   (let ((digit-val (string-to-number (string digit-char))))
     (setq evil-keypad--session-active-prefix-arg
           (let ((arg evil-keypad--session-active-prefix-arg))
@@ -571,7 +576,7 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
 
 (defun evil-keypad--maybe-set-pending-modifier (event mod-from-pending)
   "Set pending modifier based on EVENT and MOD-FROM-PENDING.
-EVENT is the key event pressed. MOD-FROM-PENDING is the pending modifier."
+EVENT is the key event pressed.  MOD-FROM-PENDING is the pending modifier."
   (let ((key-is-m-trigger (eq event evil-keypad-M-trigger))
         (key-is-cm-trigger (eq event evil-keypad-C-M-trigger))
         (key-is-literal-trigger (eq event evil-keypad-literal-trigger)))
@@ -586,7 +591,7 @@ EVENT is the key event pressed. MOD-FROM-PENDING is the pending modifier."
       (evil-keypad--process-resolved-key event mod-from-pending)))))
 
 (defun evil-keypad--handle-input (event)
-  "Handle a single EVENT. Returns t if loop should exit, nil otherwise."
+  "Handle a single EVENT.  Returns t if loop should exit, nil otherwise."
   (evil-keypad--cancel-display-timer)
   (let ((cmd (lookup-key evil-keypad-state-keymap (vector event))))
     (if cmd
