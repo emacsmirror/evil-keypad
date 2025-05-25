@@ -4,9 +4,9 @@
 ;; Author: Achyudh Ram <mail@achyudh.me>
 ;; Maintainer: Achyudh Ram <mail@achyudh.me>
 ;; Created: 2025-05-03
-;; Package-Requires: ((emacs "29.1") (which-key "3.0"))
+;; Package-Requires: ((emacs "30.1") (which-key "3.0"))
 ;; Version: 0.1.5
-;; Keywords: evil, keypad, modal, command, dispatch
+;; Keywords: convenience, emulation
 ;; URL: https://github.com/achyudh/evil-keypad
 
 ;; SPDX-License-Identifier: GPL-3.0-or-later
