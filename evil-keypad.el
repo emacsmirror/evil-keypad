@@ -9,6 +9,8 @@
 ;; Keywords: evil, keypad, modal, command, dispatch
 ;; URL: https://github.com/achyudh/evil-keypad
 
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
 ;; This file is not part of GNU Emacs.
 
 ;; This program is free software; you can redistribute it and/or
@@ -54,11 +56,11 @@
 (defvar evil-keypad--keys nil
   "Internal list representing the keys sequence during keypad invocation.
 Stores (MODIFIER . KEY-STRING) cons cells, ordered most recent first.
-MODIFIER is a symbol like 'literal, 'control, 'meta, 'control-meta.
+MODIFIER is a symbol like \\='literal, \\='control, \\='meta, \\='control-meta.
 KEY-STRING is the result of `single-key-description'.")
 
 (defvar evil-keypad--pending-modifier nil
-  "Stores the pending modifier symbol ('meta, 'control-meta, 'literal) triggered
+  "Stores the pending modifier symbol (\\='meta, \\='control-meta, \\='literal) triggered
 by the previous key press, to be applied to the next key.")
 
 (defvar evil-keypad--session-initial-prefix-arg nil
@@ -66,10 +68,10 @@ by the previous key press, to be applied to the next key.")
 
 (defvar evil-keypad--session-active-prefix-arg nil
   "Prefix argument built or active during the current keypad session.
-Can be nil, an integer, a list like '(4) for C-u, or '- for M-- (raw minus).")
+Can be nil, an integer, a list like \\='(4) for C-u, or \\='- for M-- (raw minus).")
 
 (defvar evil-keypad--control-inducing-sequence-p nil
-  "Non-nil if the current keypad sequence context implies subsequent keys default to Control.
+  "Non-nil if the current keypad sequence context implies keys default to Control.
 Set based on the first command key of the sequence (e.g. x, c, m, g).")
 
 (defvar evil-keypad--display-timer nil
@@ -90,44 +92,45 @@ Set based on the first command key of the sequence (e.g. x, c, m, g).")
 
 ;;;###autoload
 (defcustom evil-keypad-activation-trigger (kbd "SPC")
-  "Key to activate `evil-keypad-start` globally when `evil-keypad-global-mode` is on.
-Works in Evil states defined by `evil-keypad-activation-states`."
+  "Key to activate `evil-keypad-start` globally.  Works when
+`evil-keypad-global-mode` is non-nil and Evil state is one of
+`evil-keypad-activation-states`."
   :type 'string :group 'evil-keypad)
 
 ;;;###autoload
 (defcustom evil-keypad-activation-states '(normal visual emacs)
-  "A list of Evil states where the `evil-keypad-activation-trigger` should be active."
+  "Evil states where the `evil-keypad-activation-trigger` should be active."
   :type '(repeat symbol) :group 'evil-keypad)
 
 ;;;###autoload
 (defcustom evil-keypad-M-trigger ?m
-  "Character entered in keypad to trigger the Meta modifier for the next key."
+  "Character to trigger Meta modifier for the next key in keypad."
   :type 'character :group 'evil-keypad)
 
 ;;;###autoload
 (defcustom evil-keypad-C-M-trigger ?g
-  "Character entered in keypad to trigger the Control-Meta modifier for the next key."
+  "Character to trigger Control-Meta modifier for the next key in keypad."
   :type 'character :group 'evil-keypad)
 
 ;;;###autoload
 (defcustom evil-keypad-literal-trigger ?\s ; Space character
-  "Character entered in keypad (after first key) to trigger literal interpretation
-for the next key."
+  "Character to trigger literal interpretation for the next key in keypad.
+Used after first key is entered."
   :type 'character :group 'evil-keypad)
 
 ;;;###autoload
 (defcustom evil-keypad-C-x-trigger ?x
-  "Character entered as the first key in keypad to represent the C-x prefix."
+  "Character used as first key in keypad to represent the C-x prefix."
   :type 'character :group 'evil-keypad)
 
 ;;;###autoload
 (defcustom evil-keypad-C-c-trigger ?c
-  "Character entered as the first key in keypad to represent the C-c prefix."
+  "Character used as first key in keypad to represent the C-c prefix."
   :type 'character :group 'evil-keypad)
 
 ;;;###autoload
 (defcustom evil-keypad-C-h-trigger ?h
-  "Character used as the first key in keypad to represent the C-h prefix."
+  "Character used as first key in keypad to represent the C-h prefix."
   :type 'character :group 'evil-keypad)
 
 ;;;###autoload
@@ -174,6 +177,7 @@ in Evil states defined by `evil-keypad-activation-states`."
   :global t
   :lighter nil ; Example: " EKAct"
   :keymap evil-keypad-global-activation-map
+  :group 'evil-keypad
   (if evil-keypad-global-mode
       (if (featurep 'evil)
           (evil-keypad--setup-global-activation-bindings)
@@ -245,7 +249,7 @@ in Evil states defined by `evil-keypad-activation-states`."
   (or (and (bound-and-true-p which-key-idle-delay) which-key-idle-delay) 0.4))
 
 (defun evil-keypad--schedule-display (&optional binding)
-  "Cancel any existing display timer and schedule `evil-keypad--display-bindings-function'.
+  "Schedule the display of available bindings cancelling any existing timer.
 If BINDING is non‑nil, pass it to that function; otherwise call with no args."
   (evil-keypad--cancel-display-timer)
   (setq evil-keypad--display-timer
@@ -316,20 +320,19 @@ the initial evil-keypad trigger keys."
 (defun evil-keypad--keymap-has-ctrl-meta-bindings-p (keymap)
   "Return t if KEYMAP contains any C-M- modified single key bindings."
   (when (keymapp keymap)
-    (let ((found nil))
+    (catch 'found
       (map-keymap
        (lambda (key _binding)
          (unless (vectorp key) ; Process single events
            (let ((mods (event-modifiers key)))
              (when (and (memq 'control mods) (memq 'meta mods))
-               (setq found t)
-               (cl-return-from evil-keypad--keymap-has-ctrl-meta-bindings-p t)))))
+               (throw 'found t)))))
        keymap)
-      found)))
+      nil)))
 
 (defun evil-keypad--context-allows-modifier-type-p (modifier-type)
   "Check if the current keypad context allows for PENDING-MODIFIER-TYPE.
-MODIFIER-TYPE is 'meta or 'control-meta."
+MODIFIER-TYPE is \\='meta or \\='control-meta."
   (if (null evil-keypad--keys) ; If at the very start of keypad input
       t ; Always allow m/g to trigger initially
     (let* ((seq-str (evil-keypad--format-sequence evil-keypad--keys))
@@ -350,7 +353,8 @@ MODIFIER-TYPE is 'meta or 'control-meta."
     (error (message "Error executing %s: %s" command err))))
 
 (defun evil-keypad--try-execute ()
-  "Check current sequence, execute/fallback, or update echo/which-key. Returns t to exit."
+  "Check current sequence, execute/fallback, or update echo/which-key.
+Returns t to exit."
   (if evil-keypad--pending-modifier
       (progn (evil-keypad--display-pending-state) nil)
     (if (null evil-keypad--keys)
@@ -441,7 +445,7 @@ Displays prefix in echo area and schedules which-key. Returns nil."
   (evil-keypad--schedule-display binding)
   nil)
 
-(defun evil-keypad--handle-command-binding (binding seq-str)
+(defun evil-keypad--handle-command-binding (binding _seq-str)
   "Handle a key sequence that maps to a command. Executes and returns t."
   (evil-keypad--cancel-display-timer-and-clear)
   (evil-keypad--execute binding)
@@ -521,7 +525,7 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
   (evil-keypad--try-execute))
 
 (defun evil-keypad--handle-universal-argument-trigger ()
-  "Handle the universal argument trigger 'u'. Returns nil."
+  "Handle the universal argument trigger \\='u\\='. Returns nil."
   (setq evil-keypad--session-active-prefix-arg
         (let ((arg evil-keypad--session-active-prefix-arg))
           (cond
@@ -561,7 +565,8 @@ Returns result of `evil-keypad--try-execute` (t to exit, nil to continue)."
   nil)
 
 (defun evil-keypad--maybe-set-pending-modifier (event mod-from-pending)
-  "Conditionally set `evil-keypad--pending-modifier' based on EVENT and MOD-FROM-PENDING."
+  "Set pending modifier based on EVENT and MOD-FROM-PENDING.
+EVENT is the key event pressed. MOD-FROM-PENDING is the pending modifier."
   (let ((key-is-m-trigger (eq event evil-keypad-M-trigger))
         (key-is-cm-trigger (eq event evil-keypad-C-M-trigger))
         (key-is-literal-trigger (eq event evil-keypad-literal-trigger)))
