@@ -151,6 +151,11 @@ Used after first key is entered."
 (defvar evil-keypad-global-activation-map (make-sparse-keymap)
   "Keymap for `evil-keypad-global-mode`.")
 
+(defun evil-keypad-global-mode--maybe-setup-evil-integration ()
+  "Setup evil integration if evil is available."
+  (when (featurep 'evil)
+    (evil-keypad--setup-global-activation-bindings)))
+
 (defun evil-keypad--setup-global-activation-bindings ()
   "Set up bindings in `evil-keypad-global-activation-map` for target states.
 Assumes `evil.el` is loaded."
@@ -181,16 +186,10 @@ in Evil states defined by `evil-keypad-activation-states`."
   (if evil-keypad-global-mode
       (if (featurep 'evil)
           (evil-keypad--setup-global-activation-bindings)
-        (with-eval-after-load 'evil
-          (evil-keypad--setup-global-activation-bindings)))
-    (when (featurep 'evil) ; Only clear if evil functions are available
+        (add-hook 'evil-mode-hook #'evil-keypad-global-mode--maybe-setup-evil-integration))
+    (remove-hook 'evil-mode-hook #'evil-keypad-global-mode--maybe-setup-evil-integration)
+    (when (featurep 'evil)
       (evil-keypad--clear-global-activation-bindings))))
-
-;; Fallback setup if evil loads after this mode was already enabled (e.g., via customize)
-(with-eval-after-load 'evil
-  (when (and (boundp 'evil-keypad-global-mode)
-             evil-keypad-global-mode)
-    (evil-keypad--setup-global-activation-bindings)))
 
 ;;----------------------------------------
 ;; Formatting Functions
@@ -309,9 +308,15 @@ the initial evil-keypad trigger keys."
       (setq which-key-show-prefix evil-keypad--original-which-key-show-prefix)
       (setq evil-keypad--original-which-key-show-prefix nil))))
 
-(with-eval-after-load 'which-key
-  (add-hook 'which-key-mode-hook #'evil-keypad--which-key-integration-setup)
-  (evil-keypad--which-key-integration-setup))
+;; Add which-key hook if which-key is available
+(defun evil-keypad--maybe-setup-which-key-integration ()
+  "Set up which-key integration if which-key is loaded."
+  (when (featurep 'which-key)
+    (add-hook 'which-key-mode-hook #'evil-keypad--which-key-integration-setup)
+    (evil-keypad--which-key-integration-setup)))
+
+;; Initialize which-key integration if already loaded
+(evil-keypad--maybe-setup-which-key-integration)
 
 ;;----------------------------------------
 ;; Core Logic
