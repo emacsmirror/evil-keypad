@@ -97,7 +97,7 @@ Works when `evil-keypad-global-mode` is non-nil and Evil state is one of
   :type 'string :group 'evil-keypad)
 
 ;;;###autoload
-(defcustom evil-keypad-activation-states '(normal visual emacs)
+(defcustom evil-keypad-activation-states '(normal visual motion emacs)
   "Evil states where the `evil-keypad-activation-trigger` should be active."
   :type '(repeat symbol) :group 'evil-keypad)
 
