@@ -1,10 +1,10 @@
-;;; evil-keypad.el --- Modal command dispatch that speaks native Emacs keybindings -*- lexical-binding: t; -*-
+;;; evil-keypad.el --- Modal command dispatch for evil-mode -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025 Achyudh Ram <mail@achyudh.me>
 ;; Author: Achyudh Ram <mail@achyudh.me>
 ;; Maintainer: Achyudh Ram <mail@achyudh.me>
 ;; Created: 2025-05-03
-;; Package-Requires: ((emacs "30.1") (which-key "3.0"))
+;; Package-Requires: ((emacs "30.1") (evil "1.0.0"))
 ;; Version: 0.1.5
 ;; Keywords: convenience, emulation
 ;; URL: https://github.com/achyudh/evil-keypad
