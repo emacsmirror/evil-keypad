@@ -5,7 +5,7 @@
 ;; Maintainer: Achyudh Ram <mail@achyudh.me>
 ;; Created: 2025-05-03
 ;; Package-Requires: ((emacs "30.1") (evil "1.0.0"))
-;; Version: 0.1.5
+;; Version: 0.1.6
 ;; Keywords: convenience, emulation
 ;; URL: https://github.com/achyudh/evil-keypad
 
