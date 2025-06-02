@@ -142,6 +142,10 @@ Used after first key is entered."
   "Keypad key to emulate `negative-argument` (M-- or C-u -)."
   :type 'character :group 'evil-keypad)
 
+;;;###autoload
+(defcustom evil-keypad-quit-key (kbd "C-g")
+  "Key to quit the keypad input state."
+  :type 'string :group 'evil-keypad)
 
 ;;----------------------------------------
 ;; Global Trigger Activation
@@ -256,9 +260,6 @@ If BINDING is non‑nil, pass it to that function; otherwise call with no args."
                              evil-keypad--display-bindings-function
                              binding)))
 
-(defvar evil-keypad--initial-display-map nil
-  "Keymap pre-calculated for initial which-key display when keypad starts.")
-
 (defun evil-keypad--make-initial-display-map ()
   "Create and return a keymap for initial which-key display."
   (let ((map (make-sparse-keymap "Evil Keypad Initial Actions")))
@@ -269,11 +270,11 @@ If BINDING is non‑nil, pass it to that function; otherwise call with no args."
     (define-key map (vector evil-keypad-C-M-trigger) "C-M-trigger")
     (define-key map (vector evil-keypad-universal-argument-trigger) "universal-argument")
     (define-key map (vector evil-keypad-negative-argument-trigger) "negative-argument")
-    (define-key map (kbd "ESC") #'evil-keypad-quit)
+    (define-key map evil-keypad-quit-key #'evil-keypad-quit)
     map))
 
-;; Initialize it once when the file is loaded
-(setq evil-keypad--initial-display-map (evil-keypad--make-initial-display-map))
+(defvar evil-keypad--initial-display-map (evil-keypad--make-initial-display-map)
+  "Keymap pre-calculated for initial which-key display when keypad starts.")
 
 (defun evil-keypad--trigger-which-key-display (&optional target-keymap)
   "Show relevant bindings using which-key.
@@ -400,7 +401,7 @@ Returns t to exit."
   (cond
    (evil-keypad--pending-modifier
     (setq evil-keypad--pending-modifier nil))
-   ((not (null evil-keypad--keys))
+   (evil-keypad--keys
     (pop evil-keypad--keys))
    ((not (equal evil-keypad--session-active-prefix-arg evil-keypad--session-initial-prefix-arg))
     (setq evil-keypad--session-active-prefix-arg evil-keypad--session-initial-prefix-arg))
@@ -413,11 +414,16 @@ Returns t to exit."
   (evil-keypad--try-execute)
   nil)
 
-(defvar evil-keypad-state-keymap (make-sparse-keymap) "Keymap for keypad internal commands.")
-(define-key evil-keypad-state-keymap (kbd "<escape>") #'evil-keypad-quit)
-(define-key evil-keypad-state-keymap (kbd "ESC") #'evil-keypad-quit)
-(define-key evil-keypad-state-keymap (kbd "<backspace>") #'evil-keypad-undo)
-(define-key evil-keypad-state-keymap (kbd "DEL") #'evil-keypad-undo)
+(defun evil-keypad--make-state-keymap ()
+  "Create and return the keypad state keymap."
+  (let ((map (make-sparse-keymap)))
+    (define-key map evil-keypad-quit-key #'evil-keypad-quit)
+    (define-key map (kbd "<backspace>") #'evil-keypad-undo)
+    (define-key map (kbd "DEL") #'evil-keypad-undo)
+    map))
+
+(defvar evil-keypad-state-keymap (evil-keypad--make-state-keymap)
+  "Keymap for keypad internal commands.")
 
 (defun evil-keypad--echo (format-string &rest args)
   "Display a message in the echo area with a \"Keypad:\" prefix.
