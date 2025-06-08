@@ -1,5 +1,6 @@
 # Evil Keypad
 [![MELPA](https://melpa.org/packages/evil-keypad-badge.svg)](https://melpa.org/#/evil-keypad)
+[![MELPA Stable](https://stable.melpa.org/packages/evil-keypad-badge.svg)](https://stable.melpa.org/#/evil-keypad)
 
 ## What Is Evil Keypad?
 
