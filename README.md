@@ -1,3 +1,5 @@
+[![MELPA](https://melpa.org/packages/evil-keypad-badge.svg)](https://melpa.org/#/evil-keypad)
+
 # Evil Keypad
 
 ## What Is Evil Keypad?
@@ -21,17 +23,34 @@ Meow's Keypad introduced an elegant solution by translating sequences of simple 
 
 ## Installation
 
-Evil Keypad is not yet available on MELPA. For now, install it manually or via `use-package` with `:vc`.
+Evil Keypad is available on MELPA. You can install it using `package.el`:
 
-### Using `use-package` with `:vc` (Recommended)
+### Using `package-install`
 
-This requires Emacs 29+ (for built-in VC package management) or an appropriately configured `use-package` setup that can fetch from Git.
+1. Ensure MELPA is added to your `package-archives`:
+   ```elisp
+   (require 'package)
+   (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+   (package-initialize)
+   ```
+
+2. Install `evil-keypad`:
+   ```elisp
+   M-x package-install RET evil-keypad RET
+   ```
+
+3. Enable the mode:
+   ```elisp
+   (require 'evil-keypad)
+   (evil-keypad-global-mode 1)
+   ```
+
+### Using `use-package`
 
 ```elisp
 (use-package evil-keypad
-  :vc (:url "https://github.com/achyudh/evil-keypad")
   :ensure t
-  :after evil ; Load after Evil if you're an Evil user
+  :after evil
   :config
   (evil-keypad-global-mode 1))
 ```
