@@ -360,6 +360,7 @@ MODIFIER-TYPE is \\='meta or \\='control-meta."
   "Execute COMMAND, applying the active prefix argument."
   (condition-case err
       (let ((current-prefix-arg evil-keypad--session-active-prefix-arg))
+        (setq this-command command)
         (call-interactively command))
     (error (message "Error executing %s: %s" command err))))
 
@@ -397,12 +398,14 @@ Returns t to exit."
 (defun evil-keypad-quit ()
   "Interactive command to quit keypad."
   (interactive)
+  (setq this-command last-command)
   (evil-keypad--quit) t)
 
 ;;;###autoload
 (defun evil-keypad-undo ()
   "Interactive command to undo last keypad input."
   (interactive)
+  (setq this-command last-command)
   (evil-keypad--cancel-display-timer-and-clear)
   (cond
    (evil-keypad--pending-modifier
@@ -658,7 +661,8 @@ EVENT is the key event pressed.  MOD-FROM-PENDING is the pending modifier."
   "Start the Evil Keypad transient mode."
   (interactive)
   (evil-keypad--cancel-display-timer-and-clear)
-  (setq evil-keypad--keys nil
+  (setq this-command last-command
+        evil-keypad--keys nil
         evil-keypad--pending-modifier nil
         evil-keypad--session-initial-prefix-arg current-prefix-arg
         evil-keypad--session-active-prefix-arg evil-keypad--session-initial-prefix-arg

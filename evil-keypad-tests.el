@@ -11,6 +11,7 @@
 ;; State variables for test mocking
 (defvar evil-keypad-test--executed-cmd nil "Last executed command.")
 (defvar evil-keypad-test--executed-prefix-arg nil "Prefix arg used with last command.")
+(defvar evil-keypad-test--executed-this-command nil "Value of this-command when command was executed.")
 (defvar evil-keypad-test--which-key-called nil "Flag to track if which-key display was called.")
 (defvar evil-keypad-test--which-key-hidden nil "Flag to track if which-key display was hidden.")
 (defvar evil-keypad-test--which-key-keymap-arg nil "Store keymap argument passed to which-key display function.")
@@ -20,7 +21,13 @@
   "Advice for evil-keypad--execute to track execution."
   (setq evil-keypad-test--executed-cmd command
         evil-keypad-test--executed-prefix-arg evil-keypad--session-active-prefix-arg)
-  t)
+  (let ((original-call-interactively (symbol-function 'call-interactively)))
+    (unwind-protect
+        (progn
+          (fset 'call-interactively (lambda (cmd)
+                                      (setq evil-keypad-test--executed-this-command this-command)))
+          (funcall orig-fn command))
+      (fset 'call-interactively original-call-interactively))))
 
 (defun evil-keypad-test--null-try-execute (orig-fn &rest _args)
   "Advise `evil-keypad--try-execute` to do nothing and return nil.
@@ -332,6 +339,40 @@ Returns (FORMATTED-SEQ . CONTROL-INDUCING-P)."
                   '((control . "a") (literal . "f") (control . "x"))))
    (should evil-keypad--control-inducing-sequence-p)))
 
+(ert-deftest evil-keypad-test-this-command-setting ()
+  "Test that this-command is properly set by evil-keypad functions."
+  (let ((original-this-command this-command)
+        (original-last-command last-command))
+    (unwind-protect
+        (progn
+          ;; Test evil-keypad-start sets this-command to last-command
+          (setq last-command 'some-previous-command
+                this-command 'some-current-command)
+          (evil-keypad-test-translations-only
+           (advice-add 'read-key :override (lambda () (throw 'exit-keypad ?q)))
+           (unwind-protect
+               (catch 'exit-keypad
+                 (evil-keypad-start))
+             (advice-remove 'read-key :override))
+           (should (eq this-command 'some-previous-command)))
+
+          ;; Test evil-keypad-quit sets this-command to last-command
+          (setq last-command 'some-quit-test-command
+                this-command 'some-other-command)
+          (evil-keypad-quit)
+          (should (eq this-command 'some-quit-test-command))
+
+          ;; Test evil-keypad-undo sets this-command to last-command
+          (setq last-command 'some-undo-test-command
+                this-command 'some-other-command)
+          (evil-keypad-test-translations-only
+           (evil-keypad-undo)
+           (should (eq this-command 'some-undo-test-command))))
+      ;; Cleanup
+      (setq this-command original-this-command
+            last-command original-last-command))))
+
+
 ;;----------------------------------------
 ;; ERT Test Cases - Undo Logic
 ;;----------------------------------------
@@ -489,33 +530,39 @@ Returns (FORMATTED-SEQ . CONTROL-INDUCING-P)."
 ;;----------------------------------------
 
 (ert-deftest evil-keypad-test-command-execution ()
-  "Test command execution with proper prefix args."
+  "Test command execution with proper prefix args and this-command setting."
   (advice-add 'evil-keypad--execute :around #'evil-keypad-test--track-execution)
   (unwind-protect
       (progn
         ;; Test simple command execution
         (setq evil-keypad--executed-cmd nil
               evil-keypad--executed-prefix-arg nil
+              evil-keypad--executed-this-command nil
               evil-keypad--session-active-prefix-arg nil)
         (evil-keypad--handle-command-binding 'find-file "C-x C-f")
         (should (eq evil-keypad-test--executed-cmd 'find-file))
         (should (null evil-keypad-test--executed-prefix-arg))
+        (should (eq evil-keypad-test--executed-this-command 'find-file))
 
         ;; Test command with universal arg
         (setq evil-keypad--executed-cmd nil
               evil-keypad--executed-prefix-arg nil
+              evil-keypad--executed-this-command nil
               evil-keypad--session-active-prefix-arg '(4))
         (evil-keypad--handle-command-binding 'forward-char "C-f")
         (should (eq evil-keypad-test--executed-cmd 'forward-char))
         (should (equal evil-keypad-test--executed-prefix-arg '(4)))
+        (should (eq evil-keypad-test--executed-this-command 'forward-char))
 
         ;; Test command with numeric arg
         (setq evil-keypad--executed-cmd nil
               evil-keypad--executed-prefix-arg nil
+              evil-keypad--executed-this-command nil
               evil-keypad--session-active-prefix-arg 5)
         (evil-keypad--handle-command-binding 'previous-line "C-p")
         (should (eq evil-keypad-test--executed-cmd 'previous-line))
-        (should (= evil-keypad-test--executed-prefix-arg 5)))
+        (should (= evil-keypad-test--executed-prefix-arg 5))
+        (should (eq evil-keypad-test--executed-this-command 'previous-line)))
     (advice-remove 'evil-keypad--execute #'evil-keypad-test--track-execution)))
 
 (defun evil-keypad-test--simulate-input (key-events-list)
