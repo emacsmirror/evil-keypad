@@ -17,7 +17,7 @@
 (defvar evil-keypad-test--which-key-keymap-arg nil "Store keymap argument passed to which-key display function.")
 
 ;; Execution tracking and mocking
-(defun evil-keypad-test--track-execution (orig-fn command)
+(defun evil-keypad-test--track-execution (orig-fn command &optional key-sequence)
   "Advice for evil-keypad--execute to track execution."
   (setq evil-keypad-test--executed-cmd command
         evil-keypad-test--executed-prefix-arg evil-keypad--session-active-prefix-arg)
@@ -26,7 +26,7 @@
         (progn
           (fset 'call-interactively (lambda (cmd)
                                       (setq evil-keypad-test--executed-this-command this-command)))
-          (funcall orig-fn command))
+          (funcall orig-fn command key-sequence))
       (fset 'call-interactively original-call-interactively))))
 
 (defun evil-keypad-test--null-try-execute (orig-fn &rest _args)
@@ -576,6 +576,26 @@ Returns (FORMATTED-SEQ . CONTROL-INDUCING-P)."
 
   (dolist (event key-events-list)
     (evil-keypad--handle-input event)))
+
+(ert-deftest evil-keypad-test-use-package-bind-keymap-autoload-uses-translated-keys ()
+  "Test :bind-keymap autoload thunks see the translated key sequence."
+  (require 'use-package)
+  (let ((old-global-map (current-global-map))
+        (unread-command-events nil))
+    (unwind-protect
+        (progn
+          (use-global-map (copy-keymap old-global-map))
+          (use-package project
+            :ensure nil
+            :bind-keymap (("C-c p" . project-prefix-map)))
+          (let ((binding (lookup-key (current-global-map) (kbd "C-c p") t)))
+            (should (commandp binding))
+            (should-not (keymapp binding))
+            (evil-keypad--handle-command-binding binding "C-c p"))
+          (should (keymapp (lookup-key (current-global-map) (kbd "C-c p") t)))
+          (should-not (keymapp (lookup-key (current-global-map) (kbd "p") t))))
+      (use-global-map old-global-map)
+      (setq unread-command-events nil))))
 
 (ert-deftest evil-keypad-test-prefix-help-command ()
   "Test the prefix-help-command functionality."

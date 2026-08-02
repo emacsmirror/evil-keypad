@@ -356,12 +356,22 @@ MODIFIER-TYPE is \\='meta or \\='control-meta."
             (control-meta (evil-keypad--keymap-has-ctrl-meta-bindings-p current-map)))
         nil))))
 
-(defun evil-keypad--execute (command)
-  "Execute COMMAND, applying the active prefix argument."
+(defun evil-keypad--execute (command &optional key-sequence)
+  "Execute COMMAND, applying the active prefix argument.
+When KEY-SEQUENCE is non-nil, expose it via `this-command-keys-vector'
+while COMMAND runs."
   (condition-case err
-      (let ((current-prefix-arg evil-keypad--session-active-prefix-arg))
-        (setq this-command command)
-        (call-interactively command))
+      (let ((current-prefix-arg evil-keypad--session-active-prefix-arg)
+            (original-command-keys (and (fboundp 'this-command-keys-vector)
+                                        (this-command-keys-vector))))
+        (unwind-protect
+            (progn
+              (when (and key-sequence (fboundp 'set--this-command-keys))
+                (set--this-command-keys (kbd key-sequence)))
+              (setq this-command command)
+              (call-interactively command))
+          (when (and original-command-keys (fboundp 'set--this-command-keys))
+            (set--this-command-keys (key-description original-command-keys)))))
     (error (message "Error executing %s: %s" command err))))
 
 (defun evil-keypad--try-execute ()
@@ -475,11 +485,12 @@ SEQ-STR is the formatted key sequence string."
   (evil-keypad--schedule-display binding)
   nil)
 
-(defun evil-keypad--handle-command-binding (binding _seq-str)
+(defun evil-keypad--handle-command-binding (binding seq-str)
   "Handle a key sequence that maps to a command.  Executes and returns t.
-BINDING is the command to execute with the current prefix argument."
+BINDING is the command to execute with the current prefix argument.
+SEQ-STR is the key sequence that resolved to BINDING."
   (evil-keypad--cancel-display-timer-and-clear)
-  (evil-keypad--execute binding)
+  (evil-keypad--execute binding seq-str)
   t)
 
 (defun evil-keypad--handle-help-request (keymap)
